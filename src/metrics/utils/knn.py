@@ -1,46 +1,78 @@
+# src/metrics/utils/knn.py
+
 import numpy as np
 from sklearn.neighbors import KDTree, BallTree
 
+from ...exceptions import UnsupportedMetricError
+
+
 class KNNFinder:
     """
-    Class to find the k-nearest neighbors using KDTree.
+    Lightweight wrapper to perform exact k-NN queries over a static reference set.
+    Backends: 'kd_tree', 'ball_tree', 'brute' (euclidean).
     """
 
     def __init__(self, data: np.ndarray, leaf_size: int = 40, tree_type: str = 'kd_tree'):
         """
-        Initializes the KDTree with the provided data.
-
         Parameters
         ----------
-        data : np.ndarray
-            Training data with shape (n_samples, n_features).
-        leaf_size : int, optional
-            Number of points in the leaf nodes. Default is 40.
+        data : np.ndarray of shape (m, d)
+            Reference data (not modified in-place).
+        leaf_size : int, default=40
+            Leaf size for tree-based backends.
+        tree_type : {'kd_tree', 'ball_tree', 'brute'}, default='kd_tree'
+            Backend to use. 'brute' computes pairwise euclidean distances on the fly.
         """
-        self.data = data
-        self.tree_type = tree_type.lower()
+        self.data = np.asarray(data)
+        self.tree_type = str(tree_type).lower()
+
         if self.tree_type == 'kd_tree':
-            self.tree = KDTree(data, leaf_size=leaf_size)
+            self.tree = KDTree(self.data, leaf_size=leaf_size)
         elif self.tree_type == 'ball_tree':
-            self.tree = BallTree(data, leaf_size=leaf_size)
+            self.tree = BallTree(self.data, leaf_size=leaf_size)
+        elif self.tree_type == 'brute':
+            # No pre-built tree needed; keep None and compute on query.
+            self.tree = None
         else:
-            raise ValueError("tree_type debe ser 'kd_tree' o 'ball_tree'")
+            raise UnsupportedMetricError(
+                "tree_type debe ser 'kd_tree', 'ball_tree' o 'brute'"
+            )
 
     def query(self, points: np.ndarray, k: int = 5) -> np.ndarray:
         """
-        Finds the k-nearest neighbors for each point in 'points'.
-
         Parameters
         ----------
-        points : np.ndarray
-            Query points with shape (n_queries, n_features).
-        k : int, optional
-            Number of neighbors to find. Default is 5.
+        points : np.ndarray of shape (q, d)
+            Query points (not modified in-place).
+        k : int, default=5
+            Number of nearest neighbors to retrieve.
 
         Returns
         -------
-        indices : np.ndarray
-            Indices of the nearest neighbors in 'data' for each query point.
+        indices : np.ndarray of shape (q, k), dtype=int64
+            For each query row, indices of its k nearest neighbors in 'data'.
         """
-        distances, indices = self.tree.query(points, k=k)
-        return indices
+        Q = np.asarray(points)
+
+        if self.tree_type in ('kd_tree', 'ball_tree'):
+            # scikit-learn guarantees neighbors ordered by increasing distance
+            _, indices = self.tree.query(Q, k=k)
+            return indices
+
+        # 'brute' backend (euclidean only)
+        # Compute squared distances to avoid unnecessary sqrt
+        # dist^2 = ||a||^2 + ||b||^2 - 2 a·b
+        # Shapes: Q (q,d), D (m,d)
+        D = self.data
+        # Norms
+        q_norm2 = np.einsum('ij,ij->i', Q, Q)  # (q,)
+        d_norm2 = np.einsum('ij,ij->i', D, D)  # (m,)
+        # Gram matrix
+        G = Q @ D.T  # (q, m)
+        d2 = q_norm2[:, None] + d_norm2[None, :] - 2.0 * G  # (q, m)
+        # Argpartition for top-k (ascending distances)
+        idx = np.argpartition(d2, kth=k-1, axis=1)[:, :k]  # (q, k) unordered slice
+        # Order the k candidates by actual distance
+        row_idx = np.arange(idx.shape[0])[:, None]
+        idx_sorted = idx[row_idx, np.argsort(d2[row_idx, idx], axis=1)]
+        return idx_sorted
