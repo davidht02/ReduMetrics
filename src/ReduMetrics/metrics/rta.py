@@ -1,6 +1,7 @@
+
 import numpy as np
 
-from ..exceptions import (
+from ReduMetrics.exceptions import (
     InvalidShapeError,
     InconsistentDimensionsError,
     InvalidKError,      # reutilizamos para validar T (si prefieres, creamos InvalidTError)

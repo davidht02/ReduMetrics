@@ -1,12 +1,9 @@
 import numpy as np
-import sys
 
-sys.path.append('C:\\Users\\david\\Desktop\\David\\FIB\\ReduMetrics\\src\\metrics')
-
-from utils.knn import KNNFinder
+from ReduMetrics.metrics.utils.knn import KNNFinder
 from sklearn.neighbors import NearestNeighbors
 
-from ..exceptions import (
+from ReduMetrics.exceptions import (
     InvalidShapeError,
     InconsistentDimensionsError,
     InvalidKError,

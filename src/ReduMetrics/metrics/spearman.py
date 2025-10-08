@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import rankdata
 
-from ..exceptions import (
+from ReduMetrics.exceptions import (
     InvalidShapeError,
     InconsistentDimensionsError,
     InvalidKError,
