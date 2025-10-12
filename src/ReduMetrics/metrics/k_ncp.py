@@ -32,7 +32,7 @@ def _check_inputs_kncp(X_high: np.ndarray, X_low: np.ndarray, labels: np.ndarray
         raise InvalidKError("Se requieren al menos 2 clases para k-NCP.")
     return C, classes
 
-def kncp_score(X_high: np.ndarray, X_low: np.ndarray, labels: np.ndarray) -> float:
+def kncp_score(X_high: np.ndarray, X_low: np.ndarray, labels: np.ndarray, k: int | None = None) -> float:
     """
     k-Nearest Class Preservation (k-NCP): promedio, sobre clases, de la fracción de
     vecinos de clase preservados entre alto y bajo.
@@ -41,9 +41,14 @@ def kncp_score(X_high: np.ndarray, X_low: np.ndarray, labels: np.ndarray) -> flo
     Xl = np.asarray(X_low)
     C, classes = _check_inputs_kncp(Xh, Xl, labels)
 
-    # k dinámico, acotado: 1 <= k < C
-    k = (C + 2) // 4
-    k = max(1, min(k, C - 1))
+    if k is None:
+        k_eff = max(1, min((C + 2) // 4, C - 1))
+    else:
+        if not isinstance(k, (int, np.integer)):
+            raise InvalidKError("k debe ser un entero.")
+        if not (1 <= k < C):
+            raise InvalidKError(f"k debe estar en [1, {C-1}].")
+        k_eff = int(k)
 
     # Centroides por clase (en el mismo orden que 'classes')
     cent_high = np.vstack([Xh[labels == c].mean(axis=0) for c in classes])
@@ -60,8 +65,8 @@ def kncp_score(X_high: np.ndarray, X_low: np.ndarray, labels: np.ndarray) -> flo
     # Selección de los k vecinos más cercanos sin ordenar todo (O(C^2))
     # Para cada fila, cogemos los k índices con menor distancia
     # (no necesitamos orden total para la intersección)
-    nh = np.argpartition(Dn, kth=k-1, axis=1)[:, :k]  # (C, k)
-    nl = np.argpartition(Dr, kth=k-1, axis=1)[:, :k]  # (C, k)
+    nh = np.argpartition(Dn, kth=k_eff-1, axis=1)[:, :k_eff]  # (C, k)
+    nl = np.argpartition(Dr, kth=k_eff-1, axis=1)[:, :k_eff]  # (C, k)
 
     # Fracción de solape por clase y media
     preserved = 0.0
@@ -69,7 +74,7 @@ def kncp_score(X_high: np.ndarray, X_low: np.ndarray, labels: np.ndarray) -> flo
         # set para O(1) en pertenencia
         set_h = set(nh[idx])
         common = sum(1 for j in nl[idx] if j in set_h)
-        preserved += common / k
+        preserved += common / k_eff
 
     return float(preserved / C)
 
