@@ -16,17 +16,15 @@ Tested with **Python 3.9 – 3.12**.
 
 **Dependencies:**  
 `numpy`, `scipy`, `scikit-learn`  
-*(optional: `matplotlib`, `pandas` for notebooks)*
 
 ---
 
 ## Installation
 
 ```bash
-# from the project root
 pip install ReduMetrics
 ```
-
+---
 ## Usage
 
 ```import numpy as np
@@ -50,4 +48,4 @@ rho  = spearman_correlation(X_high, X_low, P=20000, random_state=0)  # -> [-1, 1
 kncp = kncp_score(X_high, X_low, labels)                       # -> [0, 1]
 cdc  = cdc_score (X_high, X_low, labels)                       # -> [-1, 1]
 
-print(ulse, rta, rho, kncp, cdc)```
+print(ulse, rta, rho, kncp, cdc)
