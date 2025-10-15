@@ -42,7 +42,6 @@ def _drop_self_indices(neighs: np.ndarray) -> np.ndarray:
     for i in range(m):
         row = neighs[i]
         # Encontrar posición del autovecino i en la fila
-        # (en KDTree/BallTree normalmente es row[0], pero hacemos esto robusto)
         mask = row != i
         # Extrae los primeros k distintos de i preservando orden
         out[i] = row[mask][:k]
@@ -72,7 +71,7 @@ def ulse_score(X_high: np.ndarray, X_low: np.ndarray, k: int = 5) -> float:
     m = _check_inputs(Xh, Xl, k)
 
     # Índices para cada espacio
-    knn_high = KNNFinder(Xh)   # backend por defecto ('kd_tree')
+    knn_high = KNNFinder(Xh)   
     knn_low = KNNFinder(Xl)
 
     # Si consultamos sobre el mismo conjunto que indexa el KNNFinder,
